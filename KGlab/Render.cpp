@@ -250,7 +250,6 @@ void drawFigure(GLuint texId)
 	glEnd();
 }
 
-//внутренняя логика "движка"
 #include "MyOGL.h"
 extern OpenGL gl;
 #include "Light.h"
@@ -262,7 +261,6 @@ bool texturing = true;
 bool lightning = true;
 bool alpha = false;
 
-//переключение режимов освещения, текстурирования, альфаналожения
 void switchModes(OpenGL *sender, KeyEventArg arg)
 {
 	//конвертируем код клавиши в букву
@@ -282,34 +280,24 @@ void switchModes(OpenGL *sender, KeyEventArg arg)
 	}
 }
 
-//Текстовый прямоугольничек в верхнем правом углу.
-//OGL не предоставляет возможности для хранения текста
-//внутри этого класса создается картинка с текстом (через виндовый GDI),
-//в виде текстуры накладывается на прямоугольник и рисуется на экране.
-//Это самый простой способ что то написать на экране
-//но ооооочень не оптимальный
 GuiTextRectangle text;
 
-//айдишник для текстуры
 GLuint texId;
 
 void initRender()
 {
 	//==============НАСТРОЙКА ТЕКСТУР================
-	//4 байта на хранение пикселя
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
 	//================НАСТРОЙКА КАМЕРЫ======================
 	camera.caclulateCameraPos();
 
-	//привязываем камеру к событиям "движка"
 	gl.WheelEvent.reaction(&camera, &Camera::Zoom);
 	gl.MouseMovieEvent.reaction(&camera, &Camera::MouseMovie);
 	gl.MouseLeaveEvent.reaction(&camera, &Camera::MouseLeave);
 	gl.MouseLdownEvent.reaction(&camera, &Camera::MouseStartDrag);
 	gl.MouseLupEvent.reaction(&camera, &Camera::MouseStopDrag);
 	//==============НАСТРОЙКА СВЕТА===========================
-	//привязываем свет к событиям "движка"
 	gl.MouseMovieEvent.reaction(&light, &Light::MoveLight);
 	gl.KeyDownEvent.reaction(&light, &Light::StartDrug);
 	gl.KeyUpEvent.reaction(&light, &Light::StopDrug);
@@ -318,7 +306,6 @@ void initRender()
 	gl.KeyDownEvent.reaction(switchModes);
 	text.setSize(512, 180);
 	//========================================================
-
 	camera.setPosition(2, 1.5, 1.5);
 }
 
@@ -326,40 +313,27 @@ float view_matrix[16];
 double full_time = 0;
 void Render(double delta_time)
 {    
-
 	full_time += delta_time;
-	
-	//натройка камеры и света
-	//в этих функциях находятся OGLные функции
-	//которые устанавливают параметры источника света
-	//и моделвью матрицу, связанные с камерой.
 
 	if (gl.isKeyPressed('F')) //если нажата F - свет из камеры
 	{
 		light.SetPosition(camera.x(), camera.y(), camera.z());
 	}
 	camera.SetUpCamera();
-	//забираем моделвью матрицу сразу после установки камера
-	//так как в ней отсуствуют трансформации glRotate...
-	//она, фактически, является видовой.
+
 	glGetFloatv(GL_MODELVIEW_MATRIX,view_matrix);
 
 	light.SetUpLight();
 
-	//рисуем оси
 	gl.DrawAxes();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-
-	//включаем нормализацию нормалей
-	//чтобв glScaled не влияли на них.
 
 	glEnable(GL_NORMALIZE);  
 	glDisable(GL_LIGHTING);
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
-	
-	//включаем режимы, в зависимости от нажания клавиш. см void switchModes(OpenGL *sender, KeyEventArg arg)
+
 	if (lightning)
 		glEnable(GL_LIGHTING);
 	if (texturing)
@@ -376,25 +350,20 @@ void Render(double delta_time)
 		
 	//=============НАСТРОЙКА МАТЕРИАЛА==============-
 
-	//настройка материала, все что рисуется ниже будет иметь этот метериал.
-	//массивы с настройками материала
 	float  amb[] = { 0.2, 0.2, 0.1, 1. };
 	float dif[] = { 0.4, 0.65, 0.5, 1. };
 	float spec[] = { 0.9, 0.8, 0.3, 1. };
 	float sh = 0.2f * 256;
 
-	//фоновая
 	glMaterialfv(GL_FRONT, GL_AMBIENT, amb);
-	//дифузная
+
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, dif);
-	//зеркальная
+
 	glMaterialfv(GL_FRONT, GL_SPECULAR, spec); 
-	//размер блика
+
 	glMaterialf(GL_FRONT, GL_SHININESS, sh);
 
-	//чтоб было красиво, без квадратиков (сглаживание освещения)
-	glShadeModel(GL_SMOOTH); //закраска по Гуро      
-			   //(GL_SMOOTH - плоская закраска)
+	glShadeModel(GL_SMOOTH);     
 
 	//============ РИСОВАТЬ ТУТ ==============
 
@@ -403,28 +372,16 @@ void Render(double delta_time)
 	//===============================================
 
 	//================Сообщение в верхнем левом углу=======================
-	//переключаемся на матрицу проекции
 	glMatrixMode(GL_PROJECTION);
-	//сохраняем текущую матрицу проекции с перспективным преобразованием
 	glPushMatrix();
-	//загружаем единичную матрицу в матрицу проекции
 	glLoadIdentity();
 
-	//устанавливаем матрицу паралельной проекции
 	glOrtho(0, gl.getWidth() - 1, 0, gl.getHeight() - 1, 0, 1);
 
-	//переключаемся на моделвью матрицу
 	glMatrixMode(GL_MODELVIEW);
-	//сохраняем матрицу
 	glPushMatrix();
-    //сбразываем все трансформации и настройки камеры загрузкой единичной матрицы
 	glLoadIdentity();
 
-	//отрисованное тут будет визуалзироватся в 2д системе координат
-	//нижний левый угол окна - точка (0,0)
-	//верхний правый угол (ширина_окна - 1, высота_окна - 1)
-
-	
 	std::wstringstream ss;
 	ss << std::fixed << std::setprecision(3);
 	ss << "T - " << (texturing ? L"[вкл]выкл  " : L" вкл[выкл] ") << L"текстур" << std::endl;
@@ -439,16 +396,13 @@ void Render(double delta_time)
 	ss << L"delta_time: " << std::setprecision(5)<< delta_time << std::endl;
 	ss << L"full_time: " << std::setprecision(2) << full_time << std::endl;
 
-	
 	text.setPosition(10, gl.getHeight() - 10 - 180);
 	text.setText(ss.str().c_str());
 	
 	text.Draw();
 
-	//восстанавливаем матрицу проекции на перспективу, которую сохраняли ранее.
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
-
 }   
